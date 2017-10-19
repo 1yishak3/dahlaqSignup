@@ -1,0 +1,22 @@
+{
+  "name": "dahlaqsignup",
+  "version": "1.0.0",
+  "description": "signup webview for Dahlaq",
+  "main": "index.js",
+  "scripts": {
+    "test": "test dahlaq"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YitzhaqM/dahlaqSignup.git"
+  },
+  "keywords": [
+    "signuplogin"
+  ],
+  "author": "YitzhaqMandNatMinyel",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/YitzhaqM/dahlaqSignup/issues"
+  },
+  "homepage": "https://github.com/YitzhaqM/dahlaqSignup#readme"
+}
