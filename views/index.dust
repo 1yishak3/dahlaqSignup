@@ -12,11 +12,20 @@ Dahlaq Verify
             <div class="row center">
                 <h5 class="header col s12 light">We're trying to make sure that Dahlaq is safe for all its users. Tap on the button below and you're good.</h5>
             </div>
+
+
             <div class="row center">
-                <a href="#" id="verify" class="btn-large waves-effect waves-light blue">Tap to Verify</a>
+                <button class="btn waves-effect waves-light blue center" id='verify'>Tap to Verify</button>
             </div>
             <br><br>
         </div>
      </div>
-
 {/body }
+{<after_script}
+<script>
+    $('#verify').click(function(e) {
+        e.preventDefault();
+        $.post('/captcha');
+    });
+</script>
+{/after_script}
