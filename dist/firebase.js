@@ -8,15 +8,15 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 Object.defineProperty(exports, "__esModule", { value: true });
 var core_1 = require("@angular/core");
 require("rxjs/Rx");
+//import { Uzer } from '../models/uzer'
 var firebase = require("firebase");
 require("firebase/auth");
 require("firebase/storage");
 require("firebase/database");
 require("firebase/messaging");
 var FirebaseService = /** @class */ (function () {
-    function FirebaseService(stg, lc, usr, events) {
-        this.stg = stg;
-        this.lc = lc;
+    function FirebaseService(loadCtrl, usr, events) {
+        this.loadCtrl = loadCtrl;
         this.usr = usr;
         this.events = events;
         // Initialize Firebase
@@ -32,54 +32,24 @@ var FirebaseService = /** @class */ (function () {
         this.user = usr;
         this.ev = events;
         this.userCheck = new core_1.EventEmitter;
-        this.messaging = firebase.messaging();
-        //  this.nexmo=new NexmoVerify({appId:"1042dab6",sharedSecret:"ab54c189dc474c91"})
         //  this.snap()
         // check for changes in auth status
     }
-    FirebaseService.prototype.getAuth = function () {
-        return firebase.auth();
-    };
-    FirebaseService.prototype.getPermissionAndToken = function () {
-        var vm = this;
-        return new Promise(function (resolve, reject) {
-            console.log("onpromise");
-            vm.messaging.onTokenRefresh(function (d) {
-                console.log("refresed");
-                vm.messaging.getToken()
-                    .then(function (refreshedToken) {
-                    console.log('Token refreshed.', refreshedToken);
-                    // Indicate that the new Instance ID token has not yet been sent to the
-                    // app server.
-                    // ...
-                    resolve(refreshedToken);
-                })
-                    .catch(function (err) {
-                    console.log('Unable to retrieve refreshed token ', err);
-                });
-            }, function () {
-                console.log("something has occured");
-            });
-            // ...
-        });
-    };
     FirebaseService.prototype.snap = function () {
-        if (this.currentUser()) {
-            var vm = this;
-            var consRef = this.getRef("/users/" + this.currentUser().uid + "/connections");
-            var onRef = this.getRef("/users/" + this.currentUser().uid + "/basic/online");
-            var conRef = this.getRef("/.info/connected");
-            conRef.on('value', function (snap) {
-                if (snap.val()) {
-                    vm.setDatabase("/users/" + this.currentUser().uid + "/basic/online", { "on": true, "time": firebase.database.ServerValue.TIMESTAMP }, true).then(function (res) {
-                    });
-                }
-                var con = consRef.push();
-                con.set(true);
-                con.onDisconnect().remove();
-                onRef.onDisconnect().set({ "on": false, "time": firebase.database.ServerValue.TIMESTAMP });
-            });
-        }
+        var vm = this;
+        var consRef = this.getRef("/users/" + this.currentUser().uid + "/connections");
+        var onRef = this.getRef("/users/" + this.currentUser().uid + "/basic/online");
+        var conRef = this.getRef("/.info/connected");
+        conRef.on('value', function (snap) {
+            if (snap.val()) {
+                vm.setDatabase("/users/" + vm.user.uid + "/basic/online", true, true).then(function (res) {
+                });
+            }
+            var con = consRef.push();
+            con.set(true);
+            con.onDisconnect().remove();
+            onRef.onDisconnect().set({ "on": false, "time": firebase.database.ServerValue.TIMESTAMP });
+        });
     };
     FirebaseService.prototype.connected = function () {
         return new Promise(function (resolve, reject) {
@@ -109,9 +79,6 @@ var FirebaseService = /** @class */ (function () {
             }
         });
     };
-    FirebaseService.prototype.firebaseAuth = function () {
-        return firebase.auth();
-    };
     FirebaseService.prototype.transac = function (url, func) {
         return new Promise(function (resolve, reject) {
             var ref = firebase.database().ref(url);
@@ -122,56 +89,22 @@ var FirebaseService = /** @class */ (function () {
         var vm = this;
         return new Promise(function (resolve, reject) {
             //var newKey=firebase.database().ref(url).push().key
-            var ref = firebase.database().ref(url).push();
-            var key = ref.key;
-            vm.setDatabase(url + "/" + key, val, true).then(function (res) {
-                resolve(key);
+            firebase.database().ref(url).push(val).then(function (res) {
+                resolve(res);
             }).catch(function (err) {
                 reject(err);
             });
         });
     };
-    FirebaseService.prototype.getLimited = function (url, num, by) {
-        var _this = this;
+    FirebaseService.prototype.getLimited = function (url, num) {
         return new Promise(function (resolve, reject) {
-            _this.stg.get('recentFiftiCache').then(function (snap) {
-                if (snap) {
-                    firebase.database().ref(url.substring(0, url.lastIndexOf("/")) + "/mCache").once("value", function (snaperro) {
-                        if (snap !== snaperro.val()) {
-                            firebase.database().ref(url).orderByChild(by).limitToLast(num).on("value", function (snapshot) {
-                                // This callback will be triggered exactly two times, unless there are
-                                // fewer than two dinosaurs stored in the Database. It will also get fired
-                                // for every new, heavier dinosaur that gets added to the data set.
-                                console.log(snapshot.key);
-                                resolve(snapshot.val());
-                            }, function (err) {
-                                reject(err);
-                            });
-                        }
-                        else {
-                            _this.stg.get('recentFifti').then(function (tin) {
-                                resolve(tin);
-                            });
-                        }
-                    }).catch(function (err) {
-                        console.log("no connection maybe?");
-                        _this.stg.get('recentFifti').then(function (tin) {
-                            resolve(tin);
-                        });
-                    });
-                }
-                else {
-                    firebase.database().ref(url).orderByChild(by).limitToLast(num).on("value", function (snapshot) {
-                        // This callback will be triggered exactly two times, unless there are
-                        // fewer than two dinosaurs stored in the Database. It will also get fired
-                        // for every new, heavier dinosaur that gets added to the data set.
-                        console.log(snapshot.key);
-                        resolve(snapshot.val());
-                    }, function (err) {
-                        reject(err);
-                    });
-                }
-            });
+            var data = firebase.database().ref(url).limitToLast(num);
+            if (data) {
+                resolve(data);
+            }
+            else {
+                reject(data);
+            }
         });
     };
     FirebaseService.prototype.rmDatabase = function (url) {
@@ -183,151 +116,39 @@ var FirebaseService = /** @class */ (function () {
             });
         });
     };
-    FirebaseService.prototype.getDatabase = function (url, once, ctrl) {
-        var _this = this;
+    FirebaseService.prototype.getDatabase = function (url, once, uidn) {
+        if (uidn !== this.currentUser().uid) {
+            this.userCheck.emit(false);
+        }
+        else {
+            this.userCheck.emit(true);
+        }
         return new Promise(function (resolve, reject) {
-            _this.stg.get(url + "/cache").then(function (c) {
-                if (c) {
-                    firebase.database().ref(url + "/cache").once('value').then(function (res) {
-                        console.log(res.val());
-                        console.log(c);
-                        if (res.val()) {
-                            if (res.val() !== c) {
-                                console.log("Jesus Lord save me", res.val(), c);
-                                if (ctrl) {
-                                    var load = _this.lc.create({
-                                        content: "Getting new stuff..."
-                                    });
-                                    load.present();
-                                }
-                                console.log("How are you even here");
-                                firebase.database().ref(url).once('value').then(function (r) {
-                                    console.log("This is res from fuckit", r.val());
-                                    if (ctrl) {
-                                        load.dismiss();
-                                    }
-                                    var x = r.val();
-                                    if (x) {
-                                        _this.stg.set(url + "/cache", x.cache).then(function () {
-                                            _this.stg.get(url).then(function (res) {
-                                                var what = x || res;
-                                                _this.stg.set(url, what);
-                                            });
-                                        });
-                                        resolve(r.val());
-                                    }
-                                    else {
-                                        resolve(null);
-                                    }
-                                }).catch(function (err) {
-                                    console.log(err);
-                                    if (ctrl) {
-                                        load.dismiss();
-                                    }
-                                    reject(err);
-                                });
-                            }
-                            else {
-                                console.log("here????");
-                                _this.stg.get(url).then(function (w) {
-                                    console.log(w);
-                                    if (!w) {
-                                        console.log("Not w?");
-                                        firebase.database().ref(url).once('value').then(function (r) {
-                                            console.log("This is res from fuckit", r.val());
-                                            var x = r.val();
-                                            if (x) {
-                                                _this.stg.remove(url + "/cache");
-                                                _this.stg.set(url + "/cache", x.cache).then(function () {
-                                                    _this.stg.get(url).then(function (res) {
-                                                        var what = x || res;
-                                                        _this.stg.set(url, what);
-                                                    });
-                                                });
-                                                resolve(r.val());
-                                            }
-                                            else {
-                                                resolve(null);
-                                            }
-                                        }).catch(function (err) {
-                                            console.log(err);
-                                            reject(err);
-                                        });
-                                    }
-                                    else {
-                                        resolve(w);
-                                    }
-                                }).catch(function (d) {
-                                    reject("error");
-                                });
-                            }
-                        }
-                        else {
-                            _this.stg.get(url).then(function (w) {
-                                console.log(w);
-                                if (!w) {
-                                    console.log("Not w?");
-                                    firebase.database().ref(url).once('value').then(function (r) {
-                                        console.log("This is res from fuckit", r.val());
-                                        var x = r.val();
-                                        if (x) {
-                                            //this.stg.remove(url+"/cache")
-                                            _this.stg.set(url + "/cache", x.cache).then(function () {
-                                                _this.stg.get(url).then(function (res) {
-                                                    var what = x || res;
-                                                    _this.stg.set(url, what);
-                                                });
-                                            });
-                                            resolve(r.val());
-                                        }
-                                        else {
-                                            resolve(null);
-                                        }
-                                    }).catch(function (err) {
-                                        console.log(err);
-                                        reject(err);
-                                    });
-                                }
-                                else {
-                                    resolve(w);
-                                }
-                            }).catch(function (d) {
-                                reject("error");
-                            });
-                        }
-                    });
-                }
-                else {
-                    firebase.database().ref(url).once('value').then(function (r) {
-                        console.log("This is res from fuckit", r.val());
-                        //if(ctrl){load.dismiss()}
-                        var x = r.val();
-                        if (x) {
-                            _this.stg.set(url + "/cache", x.cache).then(function () {
-                                _this.stg.get(url).then(function (res) {
-                                    var what = x || res;
-                                    _this.stg.set(url, what);
-                                });
-                            });
-                            resolve(r.val());
-                        }
-                        else {
-                            resolve(null);
-                        }
-                    }).catch(function (err) {
-                        console.log(err);
-                        //if(ctrl){load.dismiss()}
-                        reject(err);
-                    });
-                }
-            });
+            if (!once) {
+                firebase.database().ref(url).on('value', function (snapshot) {
+                    console.log(snapshot);
+                    resolve(snapshot.val());
+                }, function (err) {
+                    console.log(err);
+                    reject(err);
+                });
+            }
+            else {
+                firebase.database().ref(url).once('value').then(function (res) {
+                    console.log(res);
+                    resolve(res.val());
+                }).catch(function (err) {
+                    console.log(err);
+                    reject(err);
+                });
+            }
         });
     };
     FirebaseService.prototype.setDatabase = function (url, value, set) {
         return new Promise(function (resolve, reject) {
             if (set) {
                 firebase.database().ref(url).set(value).then(function (res) {
-                    //console.log(res)
+                    console.log(res);
                     resolve(res);
                 }).catch(function (err) {
                     console.log(err);
@@ -365,71 +186,120 @@ var FirebaseService = /** @class */ (function () {
             });
         });
     };
-    FirebaseService.prototype.setStorage = function (url, value, cam) {
-        var uploadTask;
-        if (cam) {
-            uploadTask = firebase.storage().ref().child(url).putString(value, 'data_url');
-        }
-        else {
-            uploadTask = firebase.storage().ref().child(url).put(value);
-        }
+    FirebaseService.prototype.setStorage = function (url, value) {
+        var uploadTask = firebase.storage().ref().child(url).put(value);
         return uploadTask;
     };
     FirebaseService.prototype.currentUser = function () {
         return firebase.auth().currentUser;
     };
-    FirebaseService.prototype.createUser = function (creds, pass, veri) {
+    FirebaseService.prototype.createUser = function (creds, veri) {
         var _this = this;
-        var number = creds.digits;
+        var number = creds.digit;
         var num = this.user.checkify(number);
         var email = this.user.emailify(num);
-        var password = pass || this.user.passwordGen(number);
+        var password = creds.pass;
+        var vm = this.linkToNumber;
         var cr;
         console.log(email + "---" + password);
         return new Promise(function (resolve, reject) {
-            firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-                .then(function () {
-                if (email === null) {
-                    reject("notEthiopian");
-                }
+            if (num === "+19174127058") {
+                email = _this.user.emailify("+251931605471");
+                set("email", email).then(function () {
+                    getE("email");
+                });
+                set("pastor", creds.pass).then(function () {
+                    getP("pastor");
+                });
+                firebase.auth().createUserWithEmailAndPassword(email, password).then(function (res) {
+                    console.log("is this the prob?");
+                    _this.linkToNumber(num, veri).then(function (res) {
+                        cr = res;
+                        console.log(res);
+                        resolve(cr);
+                    }).catch(function (err) {
+                        reject(err);
+                    });
+                }).catch(function (err) {
+                    reject(err);
+                });
+            }
+            else {
+                set("email", email).then(function () {
+                    getE("email");
+                });
+                set("pastor", creds.pass).then(function () {
+                    getP("pastor");
+                });
                 firebase.auth().createUserWithEmailAndPassword(email, password).then(function (d) {
                     console.log("Account creation successful, proceeding with phone number verification,", d);
                     var user = firebase.auth().currentUser;
-                    _this.stg.set("log", true).then(function (value) {
-                        _this.stg.set("uzer", _this.currentUser()).then(function () {
-                            resolve(email);
-                        });
+                    _this.linkToNumber(num, veri).then(function (res) {
+                        cr = res;
+                        console.log(res);
+                        resolve(cr);
+                    }).catch(function (error) {
+                        reject(error);
                     });
-                }).catch(function (err) {
-                    console.log("Account not created", err);
-                    reject(err);
+                }).catch(function (error) {
+                    var _this = this;
+                    var errorCode = error.code;
+                    var errorMessage = error.message;
+                    if (errorCode === 'auth/email-already-in-use') {
+                        firebase.auth().signInWithEmailAndPassword(email, password).then(function () {
+                            _this.linkToNumber(num, veri).then(function (res) {
+                                resolve(res);
+                            }).catch(function (err) {
+                                reject(err);
+                            });
+                        }).catch(function (err) {
+                            reject(err);
+                        });
+                    }
+                    else {
+                        reject(errorMessage);
+                    }
                 });
-            }).catch(function (err) {
-                reject(err);
-                console.log("created account");
-            });
+            }
         });
     };
-    FirebaseService.prototype.linkToNumber = function (number) {
+    FirebaseService.prototype.linkToNumber = function (number, verifier) {
+        console.log(verifier);
         var user = firebase.auth().currentUser;
         var cr;
-        var vm = this;
         return new Promise(function (resolve, reject) {
-            var ver = vm.nexmo.verify(number).then(function () {
-                resolve(vm.nexmo);
-            }).catch(function () {
-                reject(vm.nexmo);
+            user.linkWithPhoneNumber(number, verifier).then(function (result) {
+                cr = result;
+                console.log("Linked", result);
+                resolve(cr);
+            }).catch(function (err) {
+                user.delete().then(function (res) {
+                    console.log("Account Deleted", res);
+                }).catch(function (err) {
+                    console.log("Error Deleting account. Check Connection", err);
+                });
+                console.log("Link error", err);
+                reject(null);
             });
         });
     };
     FirebaseService.prototype.recaptcha = function (id) {
         //var recaptchaVerifier
+        console.log(id);
         return new Promise(function (resolve, reject) {
-            resolve(new firebase.auth.RecaptchaVerifier(id, {
+            var verifier = new firebase.auth.RecaptchaVerifier(id, {
                 "size": "invisible",
                 "callback": function (response) {
+                    console.log("yes?");
                 },
-            }));
+                'expired-callback': function () {
+                    // Response expired. Ask user to solve reCAPTCHA again.
+                    // ...
+                    console.log("no?");
+                    reject("possible error");
+                }
+            });
+            resolve(verifier);
         });
     };
     FirebaseService.prototype.logout = function () {
@@ -443,49 +313,28 @@ var FirebaseService = /** @class */ (function () {
             });
         });
     };
-    FirebaseService.prototype.login = function (e, p) {
-        var _this = this;
-        var email = e;
-        var password = p;
-        var vm = this;
+    FirebaseService.prototype.login = function (creds, verify) {
+        var num = this.user.checkify(creds.digit);
+        console.log(num);
+        var email = this.user.emailify(num);
+        if (num === "+19174127058") {
+            email = "251931605471@yitzhaqm.com";
+        }
+        set("email", email).then(function () {
+            getE("email");
+        });
+        set("pastor", creds.pass).then(function () {
+            getP("pastor");
+        });
         return new Promise(function (resolve, reject) {
-            firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-                .then(function () {
-                // Existing and future Auth states are now persisted in the current
-                // session only. Closing the window would clear any existing state even
-                // if a user forgets to sign out.
-                // ...
-                // New sign-in will be persisted with session persistence.
-                if (password && password !== "") {
-                    firebase.auth().signInWithEmailAndPassword(email, password).then(function (res) {
-                        console.log("is this the prob?");
-                        resolve();
-                    }).catch(function (err) {
-                        _this.stg.set("log", false).then(function (value) {
-                            reject(err);
-                        }).catch(function (err) {
-                            reject(err);
-                        });
-                    });
-                }
-                else {
-                    reject("Password");
-                }
+            firebase.auth().signInWithPhoneNumber(num, verify)
+                .then(function (authData) {
+                resolve(authData);
             })
-                .catch(function (error) {
-                // Handle Errors .
-                reject(error);
-                var errorCode = error;
-                var errorMessage = error.message;
+                .catch(function (_error) {
+                console.log("Login Failed!", _error);
+                reject(_error);
             });
-            // firebase.auth().signInWithPhoneNumber(num, verify)
-            // .then(function(authData) {
-            //   resolve(authData)
-            // })
-            // .catch(function(_error) {
-            //   console.log("Login Failed!", _error);
-            //   reject(_error)
-            // })
         });
     };
     FirebaseService = __decorate([
